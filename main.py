@@ -131,8 +131,13 @@ def main():
         cv2.putText(frame, f"Blinks: {total_blinks}", (10, 90), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
+        # Visual Debugging: Show BLINK text
+        if blink_counter > 0:
+            cv2.putText(frame, "--- BLINKING ---", (w // 2 - 100, 50),
+                        cv2.FONT_HERSHEY_DUPLEX, 1.2, (0, 0, 255), 3)
+
         # Show the frame
-        cv2.imshow("BlinkLoad - Blink Counter", frame)
+        cv2.imshow("BlinkLoad - Blink Counter & Dashboard", frame)
 
         # Exit on 'q' key press
         if cv2.waitKey(1) & 0xFF == ord('q'):
