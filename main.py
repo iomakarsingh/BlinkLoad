@@ -83,26 +83,24 @@ def main():
                     px, py = int(landmark.x * w), int(landmark.y * h)
                     cv2.circle(frame, (px, py), 1, (0, 0, 255), -1)
 
-        # Get window-based features
-        features = detector.get_features(curr_time)
-
         # Dashboard UI
         cv2.putText(frame, f"FPS: {int(fps)}", (10, 30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         cv2.putText(frame, f"EAR: {avg_ear:.2f}", (10, 60), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-        cv2.putText(frame, f"Total Blinks: {detector.total_blinks}", (10, 90), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
         
-        # Week 2 Metrics
-        cv2.putText(frame, f"BR (BPM): {features['br']:.1f}", (10, 130), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
-        cv2.putText(frame, f"MBD (ms): {features['mbd']:.1f}", (10, 160), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 100, 255), 2)
-        cv2.putText(frame, f"BDV (ms2): {features['bdv']:.1f}", (10, 190), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (100, 255, 255), 2)
-        cv2.putText(frame, f"IBI (s): {features['ibi']:.1f}", (10, 220), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        # Core Blink Metrics
+        metrics = detector.get_metrics(curr_time)
+        cv2.putText(frame, f"Total Blinks: {detector.total_blinks}", (10, 90), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+        cv2.putText(frame, f"Blink Rate (BR): {metrics['br']:.1f} bpm", (10, 120), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+        cv2.putText(frame, f"Mean Dur (MBD): {metrics['mbd']:.1f} ms", (10, 150), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+        cv2.putText(frame, f"Variance (BDV): {metrics['bdv']:.1f}", (10, 180), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+        cv2.putText(frame, f"Interval (IBI): {metrics['ibi']:.2f} s", (10, 210), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
 
         # Visual Debugging: Blink indicator
         if is_blinking:
