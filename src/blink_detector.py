@@ -1,4 +1,5 @@
 import time
+import numpy as np
 
 # Blink Detection Constants
 EAR_THRESHOLD = 0.22      # Threshold below which eyes are considered closed
@@ -59,13 +60,46 @@ class BlinkDetector:
             
         return is_blinking_state
 
+    def _cleanup_window(self, current_time):
+        """Internal helper to drop expired events."""
+        self.blink_events = [e for e in self.blink_events if current_time - e["timestamp"] <= WINDOW_SIZE_SEC]
+
     def get_window_count(self, current_time=None):
         """
-        Removes expired timestamps and returns the count of blinks in the current window.
+        Returns the count of blinks in the current window.
+        """
+        if current_time is None:
+            current_time = time.time()
+        self._cleanup_window(current_time)
+        return len(self.blink_events)
+
+    def get_metrics(self, current_time=None):
+        """
+        Computes core metrics on the current window.
+        Returns: (blink_rate, mean_duration, variance, ibi)
         """
         if current_time is None:
             current_time = time.time()
             
-        # Remove events older than WINDOW_SIZE_SEC
-        self.blink_events = [e for e in self.blink_events if current_time - e["timestamp"] <= WINDOW_SIZE_SEC]
-        return len(self.blink_events)
+        self._cleanup_window(current_time)
+        events = self.blink_events
+        n = len(events)
+        
+        if n == 0:
+            return 0.0, 0.0, 0.0, 0.0
+            
+        # 1. Blink Rate (Blinks per Minute)
+        blink_rate = n / (WINDOW_SIZE_SEC / 60.0)
+        
+        # 2. Mean Blink Duration (ms)
+        durations = [e["duration"] for e in events]
+        mean_duration = np.mean(durations)
+        
+        # 3. Blink Duration Variance
+        variance = np.var(durations) if n > 1 else 0.0
+        
+        # 4. Inter-Blink Interval (IBI)
+        # Defined as the time since the last blink happened, for live display
+        ibi = current_time - events[-1]["timestamp"]
+        
+        return blink_rate, mean_duration, variance, ibi

@@ -85,17 +85,27 @@ def main():
 
         # Dashboard UI
         cv2.putText(frame, f"FPS: {int(fps)}", (10, 30), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(frame, f"EAR: {avg_ear:.2f}", (10, 60), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-        cv2.putText(frame, f"Total Blinks: {detector.total_blinks}", (10, 90), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-        cv2.putText(frame, f"Window Blinks (30s): {detector.get_window_count(curr_time)}", (10, 120), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        cv2.putText(frame, f"EAR: {avg_ear:.2f}", (10, 55), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+        
+        # Fetch detailed metrics
+        br, mbd, bdv, ibi = detector.get_metrics(curr_time)
+        
+        cv2.putText(frame, f"Blink Rate: {br:.1f} BPM", (10, 80), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+        cv2.putText(frame, f"Mean Dur: {mbd:.1f} ms", (10, 105), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+        cv2.putText(frame, f"Dur Var: {bdv:.1f}", (10, 130), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 128, 0), 2)
+        cv2.putText(frame, f"IBI: {ibi:.1f} s", (10, 155), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2)
+        cv2.putText(frame, f"Total: {detector.total_blinks}", (10, 180), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (180, 180, 180), 2)
 
         # Visual Debugging: Blink indicator
         if is_blinking:
-            cv2.putText(frame, "--- BLINKING ---", (w // 2 - 100, 50),
+            cv2.putText(frame, "BLINK", (w // 2 - 40, 50),
                         cv2.FONT_HERSHEY_DUPLEX, 1.2, (0, 0, 255), 3)
 
         # Render combined frame
