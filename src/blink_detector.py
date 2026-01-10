@@ -1,13 +1,12 @@
 import time
-import numpy as np
 
 # Blink Detection Constants
-EAR_THRESHOLD = 0.23      # Slightly increased for better sensitivity
+EAR_THRESHOLD = 0.22      # Threshold below which eyes are considered closed
 EAR_CONSEC_FRAMES = 3     # Minimum frames eyes must be closed to count as a blink
 WINDOW_SIZE_SEC = 30      # Time window for aggregate metrics
 
 # Physiological Constraints (ms)
-MIN_BLINK_DURATION = 70   # Lowered to capture 3-frame blinks at 30 FPS (~99ms)
+MIN_BLINK_DURATION = 100
 MAX_BLINK_DURATION = 400
 
 class BlinkDetector:
@@ -60,9 +59,52 @@ class BlinkDetector:
             
         return is_blinking_state
 
-    def _cleanup_window(self, current_time):
-        """Internal helper to drop expired events."""
+    def get_features(self, current_time=None):
+        """
+        Computes core blink features for the current window.
+        
+        Returns:
+            dict: { "br": blink_rate, "mbd": mean_duration, "bdv": variance, "ibi": inter_blink_interval }
+        """
+        if current_time is None:
+            current_time = time.time()
+            
+        # 1. Cleanup window (Strict: only accepted events)
         self.blink_events = [e for e in self.blink_events if current_time - e["timestamp"] <= WINDOW_SIZE_SEC]
+        
+        count = len(self.blink_events)
+        durations = [e["duration"] for e in self.blink_events]
+        
+        # Default empty features
+        features = {
+            "br": 0.0,
+            "mbd": 0.0,
+            "bdv": 0.0,
+            "ibi": 0.0
+        }
+        
+        if count > 0:
+            # 1. Blink Rate (BR) - BPM
+            # window_minutes = WINDOW_SIZE_SEC / 60
+            window_minutes = WINDOW_SIZE_SEC / 60.0
+            features["br"] = count / window_minutes
+            
+            # 2. Mean Blink Duration (MBD) - ms
+            features["mbd"] = sum(durations) / count
+            
+            # 3. Blink Duration Variance (BDV) - ms^2
+            if count > 1:
+                mean = features["mbd"]
+                features["bdv"] = sum((d - mean) ** 2 for d in durations) / count
+            else:
+                features["bdv"] = 0.0
+                
+            # 4. Inter-Blink Interval (IBI) - seconds
+            # Time between now and the last accepted blink
+            last_blink_time = self.blink_events[-1]["timestamp"]
+            features["ibi"] = current_time - last_blink_time
+        
+        return features
 
     def get_window_count(self, current_time=None):
         """
@@ -70,36 +112,5 @@ class BlinkDetector:
         """
         if current_time is None:
             current_time = time.time()
-        self._cleanup_window(current_time)
+        self.blink_events = [e for e in self.blink_events if current_time - e["timestamp"] <= WINDOW_SIZE_SEC]
         return len(self.blink_events)
-
-    def get_metrics(self, current_time=None):
-        """
-        Computes core metrics on the current window.
-        Returns: (blink_rate, mean_duration, variance, ibi)
-        """
-        if current_time is None:
-            current_time = time.time()
-            
-        self._cleanup_window(current_time)
-        events = self.blink_events
-        n = len(events)
-        
-        if n == 0:
-            return 0.0, 0.0, 0.0, 0.0
-            
-        # 1. Blink Rate (Blinks per Minute)
-        blink_rate = n / (WINDOW_SIZE_SEC / 60.0)
-        
-        # 2. Mean Blink Duration (ms)
-        durations = [e["duration"] for e in events]
-        mean_duration = np.mean(durations)
-        
-        # 3. Blink Duration Variance
-        variance = np.var(durations) if n > 1 else 0.0
-        
-        # 4. Inter-Blink Interval (IBI)
-        # Defined as the time since the last blink happened, for live display
-        ibi = current_time - events[-1]["timestamp"]
-        
-        return blink_rate, mean_duration, variance, ibi
