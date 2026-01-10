@@ -46,6 +46,11 @@ def main():
             print("Failed to grab frame.")
             break
 
+        # Performance Monitoring (FPS)
+        curr_time = time.time()
+        fps = 1 / (curr_time - prev_time) if prev_time != 0 else 0
+        prev_time = curr_time
+
         # Convert the BGR image to RGB for MediaPipe processing
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = face_mesh.process(rgb_frame)
@@ -61,7 +66,7 @@ def main():
                 avg_ear = (left_ear + right_ear) / 2.0
 
                 # Update Blink Detector state
-                is_blinking = detector.update(left_ear, right_ear)
+                is_blinking = detector.update(left_ear, right_ear, curr_time)
 
                 # Draw the full face mesh for visualization
                 mp_drawing.draw_landmarks(
@@ -78,11 +83,6 @@ def main():
                     px, py = int(landmark.x * w), int(landmark.y * h)
                     cv2.circle(frame, (px, py), 1, (0, 0, 255), -1)
 
-        # Performance Monitoring (FPS)
-        curr_time = time.time()
-        fps = 1 / (curr_time - prev_time) if prev_time != 0 else 0
-        prev_time = curr_time
-        
         # Dashboard UI
         cv2.putText(frame, f"FPS: {int(fps)}", (10, 30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -93,7 +93,7 @@ def main():
 
         # Visual Debugging: Blink indicator
         if is_blinking:
-            cv2.putText(frame, "--- BLINKING ---", (w // 2 - 100, 50),
+            cv2.putText(frame, "--- BLINKING ---", (10, 120),
                         cv2.FONT_HERSHEY_DUPLEX, 1.2, (0, 0, 255), 3)
 
         # Render combined frame
