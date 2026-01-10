@@ -2,12 +2,12 @@ import time
 import numpy as np
 
 # Blink Detection Constants
-EAR_THRESHOLD = 0.22      # Threshold below which eyes are considered closed
+EAR_THRESHOLD = 0.23      # Slightly increased for better sensitivity
 EAR_CONSEC_FRAMES = 3     # Minimum frames eyes must be closed to count as a blink
 WINDOW_SIZE_SEC = 30      # Time window for aggregate metrics
 
 # Physiological Constraints (ms)
-MIN_BLINK_DURATION = 100
+MIN_BLINK_DURATION = 70   # Lowered to capture 3-frame blinks at 30 FPS (~99ms)
 MAX_BLINK_DURATION = 400
 
 class BlinkDetector:
