@@ -101,6 +101,10 @@ def main():
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
         cv2.putText(frame, f"Interval (IBI): {metrics['ibi']:.2f} s", (10, 210), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+        cv2.putText(frame, f"Burst Index (BBI): {metrics['bbi']:.2f}", (10, 240), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2) # Orange
+        cv2.putText(frame, f"Stability (ESI): {metrics['esi']:.4f}", (10, 270), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2) # Pink
 
         # Visual Debugging: Blink indicator
         if is_blinking:
