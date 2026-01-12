@@ -1,23 +1,16 @@
 import cv2
 import mediapipe as mp
 import time
-from src.ear import calculate_ear, L_HORIZONTAL, L_VERTICAL, R_HORIZONTAL, R_VERTICAL
+from src.ear import calculate_ear, LEFT_EYE, RIGHT_EYE, L_HORIZONTAL, L_VERTICAL, R_HORIZONTAL, R_VERTICAL
 from src.blink_detector import BlinkDetector
 
-# Eye landmark indices for visualization (MediaPipe Standard)
-LEFT_EYE_VIS = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398]
-RIGHT_EYE_VIS = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
-
 def main():
-    """
-    Main application loop for BlinkLoad.
-    Initializes webcam, face mesh, and blink detector.
-    """
     # Initialize MediaPipe Face Mesh
     mp_face_mesh = mp.solutions.face_mesh
     mp_drawing = mp.solutions.drawing_utils
     mp_drawing_styles = mp.solutions.drawing_styles
 
+    # Refine landmarks is TRUE for detailed eye contour tracking
     face_mesh = mp_face_mesh.FaceMesh(
         max_num_faces=1,
         refine_landmarks=True,
@@ -25,20 +18,17 @@ def main():
         min_tracking_confidence=0.5
     )
 
-    # Initialize Blink Detector
-    detector = BlinkDetector()
+    # Initialize modular detector
+    detector = BlinkDetector(threshold=0.22, consec_frames=3)
 
     # Initialize webcam
     cap = cv2.VideoCapture(0)
-    
     if not cap.isOpened():
         print("Error: Could not open webcam.")
         return
 
     prev_time = 0
-    is_blinking = False
-    
-    print("BlinkLoad started. Press 'q' to quit.")
+    print("BlinkLoad Modular V1.0 started. Press 'q' to quit.")
 
     while cap.isOpened():
         success, frame = cap.read()
@@ -46,29 +36,26 @@ def main():
             print("Failed to grab frame.")
             break
 
-        # Performance Monitoring (FPS)
-        curr_time = time.time()
-        fps = 1 / (curr_time - prev_time) if prev_time != 0 else 0
-        prev_time = curr_time
-
-        # Convert the BGR image to RGB for MediaPipe processing
+        # Convert the BGR image to RGB for MediaPipe
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = face_mesh.process(rgb_frame)
 
         avg_ear = 0
+        is_blinking = False
+        
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
                 h, w, _ = frame.shape
 
-                # Calculate EAR for both eyes
+                # 1. Calculate EAR for both eyes
                 left_ear = calculate_ear(face_landmarks, L_HORIZONTAL, L_VERTICAL, w, h)
                 right_ear = calculate_ear(face_landmarks, R_HORIZONTAL, R_VERTICAL, w, h)
                 avg_ear = (left_ear + right_ear) / 2.0
 
-                # Update Blink Detector state
-                is_blinking = detector.update(left_ear, right_ear, curr_time)
+                # 2. Update blink detector state
+                is_blinking = detector.update(left_ear, right_ear)
 
-                # Draw the full face mesh for visualization
+                # 3. Draw the full face mesh for visual feedback
                 mp_drawing.draw_landmarks(
                     image=frame,
                     landmark_list=face_landmarks,
@@ -77,48 +64,36 @@ def main():
                     connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style()
                 )
                 
-                # Highlight eye landmarks specifically
-                for idx in LEFT_EYE_VIS + RIGHT_EYE_VIS:
+                # Highlight eye landmarks
+                for idx in LEFT_EYE + RIGHT_EYE:
                     landmark = face_landmarks.landmark[idx]
-                    px, py = int(landmark.x * w), int(landmark.y * h)
+                    px = int(landmark.x * w)
+                    py = int(landmark.y * h)
                     cv2.circle(frame, (px, py), 1, (0, 0, 255), -1)
 
-        # Dashboard UI
+        # 4. Performance & HUD Overlay
+        curr_time = time.time()
+        fps = 1 / (curr_time - prev_time) if prev_time != 0 else 0
+        prev_time = curr_time
+        
+        # Display Stats
         cv2.putText(frame, f"FPS: {int(fps)}", (10, 30), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         cv2.putText(frame, f"EAR: {avg_ear:.2f}", (10, 60), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
-        
-        # Core Blink Metrics
-        metrics = detector.get_metrics(curr_time)
-        cv2.putText(frame, f"Total Blinks: {detector.total_blinks}", (10, 90), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-        cv2.putText(frame, f"Blink Rate (BR): {metrics['br']:.1f} bpm", (10, 120), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
-        cv2.putText(frame, f"Mean Dur (MBD): {metrics['mbd']:.1f} ms", (10, 150), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
-        cv2.putText(frame, f"Variance (BDV): {metrics['bdv']:.1f}", (10, 180), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
-        cv2.putText(frame, f"Interval (IBI): {metrics['ibi']:.2f} s", (10, 210), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
-        cv2.putText(frame, f"Burst Index (BBI): {metrics['bbi']:.2f}", (10, 240), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 165, 255), 2) # Orange
-        cv2.putText(frame, f"Stability (ESI): {metrics['esi']:.4f}", (10, 270), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2) # Pink
+        cv2.putText(frame, f"Blinks: {detector.total_blinks}", (10, 90), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
-        # Visual Debugging: Blink indicator
+        # Visual Debugging: Blink Indicator
         if is_blinking:
             cv2.putText(frame, "--- BLINKING ---", (w // 2 - 100, 50),
                         cv2.FONT_HERSHEY_DUPLEX, 1.2, (0, 0, 255), 3)
 
-        # Render combined frame
-        cv2.imshow("BlinkLoad - Final Dashboard", frame)
+        cv2.imshow("BlinkLoad - Final Modular Dashboard", frame)
 
-        # Exit on 'q'
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-    # Clean up resources
     cap.release()
     cv2.destroyAllWindows()
     face_mesh.close()
